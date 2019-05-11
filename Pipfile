@@ -8,6 +8,7 @@ pytest = "*"
 
 [packages]
 dateparser = "*"
+requests-html = "*"
 
 [requires]
 python_version = "3.6"
