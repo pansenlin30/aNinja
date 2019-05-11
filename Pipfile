@@ -11,6 +11,7 @@ pytest-asyncio = "*"
 [packages]
 dateparser = "*"
 requests-html = "*"
+pillow = "*"
 
 [requires]
 python_version = "3.6"

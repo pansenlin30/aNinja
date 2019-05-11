@@ -1,5 +1,8 @@
 import time
 import dateparser
+import random
+import asyncio
+
 TIME_TEMPLATE = '%a, %d-%b-%Y %H:%M:%S GMT'
 
 def filter_attrs(time_format='number',
@@ -52,3 +55,56 @@ def _parse_expires_to_timestamp(raw):
         return raw
     else:
         raise TypeError('Need a valid expires time.')
+
+
+
+js1 = '''() =>{
+    
+           Object.defineProperties(navigator,{
+             webdriver:{
+               get: () => false
+             }
+           })
+        }'''
+
+
+js2 = '''() => {
+        window.navigator.chrome = {
+    runtime: {},
+    // etc.
+  };
+    }'''
+
+js3 = '''() =>{
+Object.defineProperty(navigator, 'languages', {
+      get: () => ['en-US', 'en']
+    });
+        }'''
+
+js4 = '''() =>{
+Object.defineProperty(navigator, 'plugins', {
+    get: () => [1, 2, 3, 4, 5,6],
+  });
+        }'''
+
+
+js5 = '''() => {
+        alert (
+            window.navigator.webdriver
+        )
+    }'''
+
+
+def random_delay(min=30, max=50):
+    return random.randint(min, max)
+
+
+def get_user_agent():
+    return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36 Edge/16.16299'
+
+
+def sync_coroutine(coro, loop=None):
+    (loop or asyncio.get_event_loop()).run_until_complete(coro)
+
+
+goto_js_list = [js1, js2, js3, js4]
