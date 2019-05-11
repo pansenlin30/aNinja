@@ -5,6 +5,8 @@ verify_ssl = true
 
 [dev-packages]
 pytest = "*"
+aiohttp = "*"
+pytest-asyncio = "*"
 
 [packages]
 dateparser = "*"
