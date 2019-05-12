@@ -1,4 +1,4 @@
-from aninja.client import Client
+from aninja.client import HTTPClient, BrowserClient, Request
 import pytest
 
 
@@ -9,7 +9,7 @@ def httpbin(interface=''):
 
 @pytest.mark.asyncio
 async def test_page_client():
-    client = Client()
+    client = BrowserClient()
     client.cookies_manager.set('user', 'ciri', domain='httpbin.org')
     client.cookies_manager.set('ds', 'ciweri', domain='baidu.com')
 
@@ -25,13 +25,12 @@ async def test_page_client():
 
 
 @pytest.mark.asyncio
-async def test_session_client():
-    client = Client()
-    await client.prepare_session()
+async def test_httpclient():
 
-    resp = await client.get(httpbin('/cookies/set?k1=v1&k2=v2'))
-    assert client.cookies_manager.output_header_string() == 'k1=v1; k2=v2'
-    assert '"k1": "v1"' in await resp.text()
-    assert await client.session_check('k2',url=httpbin('/cookies/set?k1=v1&k2=v2'))
-    await client.close()
+    async with HTTPClient() as client:
+        resp = await client.request('http://httpbin.org/cookies/set', method='GET', params={'k1':'v1','k2':'v2'})
+        assert client.cookies_manager.output_header_string() == 'k1=v1; k2=v2'
+        assert '"k1": "v1"' in await resp.text()
+        assert await client.check('k2',url=httpbin('/cookies/set?k1=v1&k2=v2'))
+
 
