@@ -31,7 +31,44 @@ class BaseClient:
 
 
 class SessionClient(BaseClient):
-    pass
+    """A client uses aiohttp to make requests.
+    """
+    def __init__(self):
+        super().__init__()
+        self.session = None
+
+    async def prepare_session(self):
+        headers = {
+            'User-Agent': get_user_agent()
+        }
+        if self.session is None:
+            self.session = ClientSession(headers=headers)
+            self.cookies_manager.sync_to_aiohttp_session(self.session)
+
+    async def close_session(self):
+        if self.session:
+            await self.session.close()
+        self.session = None
+
+    async def request(self,
+                method: str,
+                url: _URL,
+                **kwargs: Any):
+        resp = await self.session.request(method, url, **kwargs)
+        self.cookies_manager.update_from_aiohttp_session(self.session)
+        return resp
+
+    async def get(self, url: _URL, **kwargs: Any):
+        return await self.request("GET", url, **kwargs)
+
+    async def post(self, url: _URL, data: Any = None, **kwargs: Any):
+        return await self.request("POST", data=data, **kwargs)
+
+    async def session_check(self, check_flag: str, url:_URL=""):
+        resp = await self.get(url)
+        if check_flag in await resp.text():
+            return True
+        return False
 
 
 class BrowserClient(BaseClient):
@@ -133,8 +170,13 @@ class BrowserClient(BaseClient):
             img.show()
         return shot
 
-    async def _a_check(self, mark_selector: str):
-        return await self.page.J(mark_selector)
+    async def page_check(self, check_flag: str, url:_URL="", by_selector=False):
+        if not url in self.page.url:
+            self.page.goto(url)
+        if by_selector:
+            return await self.page.J(check_flag)
+        else:
+            return check_flag in await self.page.content()
 
 
 class Client(BrowserClient, SessionClient):
@@ -162,16 +204,3 @@ class Client(BrowserClient, SessionClient):
             await self.close_session()
         elif mode == 0:
             await self.close_page(page)
-
-    async def check(self, check_mode: Optional[int] = 0, check_flag: Optional[_CSSSelector] = None)->bool:
-        """Select a mode to check if a element exists.
-
-        Args:
-            mode: 'browser' or 'requests'
-        """
-        if check_mode == 0:
-            return await self._a_check(check_flag)
-        elif check_mode == 1:
-            return await self._r_check(check_flag)
-        else:
-            raise TypeError('Invalid checking mode, should be 0 or 1')
