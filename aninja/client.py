@@ -170,7 +170,7 @@ class BrowserClient(BaseClient):
             img.show()
         return shot
 
-    async def page_check(self, check_flag: str, url:_URL="", by_selector=False):
+    async def page_check(self, check_flag: str, url:_URL="", by_selector=True):
         if not url in self.page.url:
             self.page.goto(url)
         if by_selector:
