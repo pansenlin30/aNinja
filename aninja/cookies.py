@@ -1,4 +1,5 @@
 import time
+import json
 from http.cookiejar import Cookie, LWPCookieJar
 from http.cookies import Morsel, SimpleCookie
 
@@ -11,7 +12,6 @@ _Page = 'Page'
 _Cookie = 'Cookie'
 _Path = str
 _CookieJar = 'CookieJar'
-
 
 
 class NinjaCookieJar(LWPCookieJar, RequestsCookieJar):
@@ -27,7 +27,7 @@ class CookiesManager:
     save and load cookies with files.
     """
 
-    def __init__(self)->None:
+    def __init__(self) -> None:
         self._jar = NinjaCookieJar()
 
     def load(self, filename, ):
@@ -42,11 +42,11 @@ class CookiesManager:
         """updates with cookies from another CookieJar or dict-like, same as RequestsCookieJar"""
         self._jar.update(other)
 
-    def update_from_aiohttp_session(self, session)->None:
+    def update_from_aiohttp_session(self, session) -> None:
         for morsel in session.cookie_jar:
             self._jar.set_cookie(morsel_to_cookie(morsel))
 
-    async def update_from_pyppeteer(self, page: _Page)->None:
+    async def update_from_pyppeteer(self, page: _Page) -> None:
         cookies_list = await page.cookies()
         for cookie_dict in cookies_list:
             f = filter_attrs(time_format='number', **cookie_dict)
@@ -59,32 +59,35 @@ class CookiesManager:
         for morsel in simplecookie.values():
             self._jar.set_cookie(morsel_to_cookie(morsel))
 
-    def sync_to_aiohttp_session(self, session)->None:
+    def sync_to_aiohttp_session(self, session) -> None:
         session.cookie_jar.update_cookies(self.output_simplecookie())
 
-    def sync_to_cookiejar(self, cookiejar: _CookieJar)->None:
+    def sync_to_cookiejar(self, cookiejar: _CookieJar) -> None:
         cookiejar.update(self._jar)
 
-    async def sync_to_pyppeteer(self, page: _Page)->None:
+    async def sync_to_pyppeteer(self, page: _Page) -> None:
         if len(self):
             for cookie_dict in self.output_detailed():
                 await page.setCookie(cookie_dict)
 
-    def output_header_string(self, domain=None, path=None)->str:
+    def output_header_string(self, domain=None, path=None) -> str:
         return '; '.join(
             [k+'='+v
              for k, v in self.output_dict(domain, path).items()]
         )
 
-    def output_js(self, domain=None, path=None)->str:
+    def output_js(self, domain=None, path=None) -> str:
         return self.output_simplecookie(domain, path).js_output()
 
-    def output_dict(self, domain=None, path=None)->dict:
+    def output_dict(self, domain=None, path=None) -> dict:
         """returns a plain old Python dict of name-value pairs of cookies.
         """
         return self._jar.get_dict(domain, path)
 
-    def output_detailed(self, domain=None, path=None)->list:
+    def output_json(self, domain=None, path=None) -> str:
+        return json.dumps(self.output_detailed(domain, path))
+
+    def output_detailed(self, domain=None, path=None) -> list:
         """returnes a list of dictionaries which contain name, value and other
         attributes for cookie.
         """
@@ -120,7 +123,7 @@ class CookiesManager:
     def set_cookie(self, cookie, *args, **kwargs):
         return self._jar.set_cookie(cookie, *args, **kwargs)
 
-    def copy(self)->'CookiesManager':
+    def copy(self) -> 'CookiesManager':
         m = CookiesManager()
         m.update(self._jar)
         return m
@@ -207,6 +210,7 @@ def create_morsel(key, value, **kwargs):
     morsel.update(kwargs)
 
     return morsel
+
 
 def create_cookie(name, value, **kwargs):
     """Make a cookie from underspecified parameters.

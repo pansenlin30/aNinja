@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     pass
 _Page = Optional['Page']
 _Client = 'Client'
-_CM = 'CookiesManager'
 _CSSSelector = str
 _TypeIn = Tuple[_CSSSelector, str]
 _URL = Union[str, 'URL']
@@ -36,7 +35,7 @@ class HTTPClient:
     """
 
     def __init__(self, cookies_manager=None, **kwargs):
-        self.cookies_manager = cookies_manager if cookies_manager else CookiesManager()
+        self.cookies_manager: CookiesManager = cookies_manager if cookies_manager else CookiesManager()
         self.session = None
         headers = kwargs.pop('headers', None)
         headers = headers if headers else DEFUALT_HEADERS
@@ -71,7 +70,7 @@ class HTTPClient:
         return await self.request(url, "GET", params=params, **kwargs)
 
     async def post(self, url: _URL, data: Any = None, params=None, **kwargs: Any):
-        return await self.request(url, "POST",data=data, params=None, **kwargs)
+        return await self.request(url, "POST", data=data, params=None, **kwargs)
 
     async def send(self, request, expect_json=True, ignore_content=False):
         r = await self.request(method=request.method,
