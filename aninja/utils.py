@@ -5,9 +5,10 @@ import asyncio
 
 TIME_TEMPLATE = '%a, %d-%b-%Y %H:%M:%S GMT'
 
+
 def filter_attrs(time_format='number',
                  attrs=('name', 'value', 'domain', 'path', 'expires'),
-                 **kwargs)->dict:
+                 **kwargs) -> dict:
     """filters a dictionary with expected attributes and expected time format
     for the expires attribute.
 
@@ -55,7 +56,6 @@ def _parse_expires_to_timestamp(raw):
         return raw
     else:
         raise TypeError('Need a valid expires time.')
-
 
 
 js1 = '''() =>{
@@ -107,4 +107,4 @@ def sync_coroutine(coro, loop=None):
     (loop or asyncio.get_event_loop()).run_until_complete(coro)
 
 
-goto_js_list = [js1, js2, js3, js4]
+pretend_js_list = [js1, js2, js3, js4]

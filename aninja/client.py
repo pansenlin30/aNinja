@@ -1,25 +1,24 @@
-import requests
 import asyncio
-import pyppeteer
-import logging
-from pyppeteer.page import Page
-from aiohttp import ClientSession, ClientRequest
-
-from io import BytesIO
-from PIL import Image
 import inspect
-from .utils import goto_js_list, random_delay, get_user_agent
-from .cookies import CookiesManager
-from . import conf
-
+import logging
+from io import BytesIO
 # typing
 from types import TracebackType
-from typing import Any, Optional, Tuple, Union, Dict, List, Type
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union
 
-if TYPE_CHECKING:
-    pass
-_Page = Optional['Page']
+import pyppeteer
+import requests
+from aiohttp import ClientRequest, ClientSession
+from PIL import Image
+from pyppeteer.browser import Browser
+from pyppeteer.connection import CDPSession
+from pyppeteer.page import Page
+
+import aninja.conf as conf
+from aninja.cookies import CookiesManager
+from aninja.utils import get_user_agent, pretend_js_list, random_delay
+
+_Page = Optional[Page]
 _Client = 'Client'
 _CSSSelector = str
 _TypeIn = Tuple[_CSSSelector, str]
@@ -114,98 +113,52 @@ class HTTPClient:
         await self.close()
 
 
-class BrowserClient:
-    """A client pretends itself as a real-world user agent using puppeteer.
+class NinjaPage(Page):
 
-    This client support a more explicit pyppeteer interface.
+    def __init__(self, page: _Page, client: 'BrowserClient'):
+        self._client = client
+        self._page = page
+        self.__dict__.update(page.__dict__)
 
-
-    Attributes:
-        browser: a pyppeteer browser object, maintains itself before closing
-        page: a pyppeteer page object. It is created by calling self.newPage()
-            and delete itself by calling self.close_page(); You should always
-            have this attributes before callling other methods related to page
-            operation.
-        cookies_manager: a CookiesManager synchronizing cookies between session and page.
-    """
-
-    def __init__(self, cookies_manager=None):
-        self.cookies_manager = cookies_manager if cookies_manager else CookiesManager()
-        self.browser = None
-        self.page = None
-
-    async def prepare(self, launch_option: Optional[Dict] = None) -> _Page:
-        """Create a new page for the client's browser.If browser is None, it wich a new browser.
-        """
-        if self.browser is None:
-            self.browser = await pyppeteer.launch(launch_option)
-        current_page = await self.browser.newPage()
-        await self.cookies_manager.sync_to_pyppeteer(current_page)
-        self.set_current_page(current_page)
-        return current_page
-
-    def set_current_page(self, page: _Page):
-        self.page = page
-
-    async def close(self, page: _Page = None):
-        """If arg page is not None, it will close the page. Otherwise it will close the whole browser.
-        """
-        if self.browser:
-            if page:
-                if page is self.page:
-                    self.page = None
-                await page.close()
-            else:
-                self.browser = await self.browser.close()
-                self.page = None
-
-    async def goto(self, url: str, options: dict = None, **kwargs: Any):
-        """Go to the url
-        Available options are: timeout, waitUtil. See ``pyppeteer.page.Page``
-        """
-        await self.cookies_manager.sync_to_pyppeteer(self.page)
-        await self.page.setUserAgent(get_user_agent())
-        for js in goto_js_list:
-            await self.page.evaluateOnNewDocument(js)
-        r = await self.page.goto(url, options=options, **kwargs)
-        await self.cookies_manager.update_from_pyppeteer(self.page)
-        return r
-
-    async def type(self, *types: _TypeIn):
-        """Simulate the action for typing username and password.
-
-        Args:
-            types: receive tuples with two elements. The first is css selector
-                for the INPUT, the second is its value.
-        """
-        for css, value in types:
-            await self.page.type(css, value, {'delay':  random_delay()})
+    @property
+    def cookies_manager(self):
+        return self._client.cookies_manager
 
     async def gather_for_navigation(self,   *aws, options: dict = None, **kwargs):
-        """if coroutines in your aws can cause browser's navigation, use this function to wrap it and
+        """if coroutines in your aws can cause page's navigation, use this function to wrap it and
         keep track of cookies.
         """
-        result = await asyncio.gather(self.page.waitForNavigation(options, **kwargs), *aws)
-        await self.cookies_manager.update_from_pyppeteer(self.page)
+        result = await asyncio.gather(self.waitForNavigation(options, **kwargs), *aws)
+        await self.cookies_manager.update_from_pyppeteer(self)
         return result
 
-    async def click(self, selector: str, options: dict = None, **kwargs):
-        return await self.page.click(selector, options, **kwargs)
+    async def screenshot(self, selector: str = '',
+                         hide_selectors: List[str] = None,
+                         show=False,
+                         options: dict = None,
+                         **kwargs):
+        """Another method to take a screen shot.
 
-    async def screenshot(self, selector: str = '', full_page=False,
-                         hide_selectors: List[str] = None, show=True,
-                         options: dict = None, **kwargs):
+            Args:
+                selector: take a screen shot of the element located by css 
+                    selector. If it's not set, then take a screen shot of the 
+                    full page.
+                hide_selectors: before taking screenshot, some elements may be 
+                    hided on purpose.
+                show: if set to True, then image will be opened by `Pillow`
+                options: same options of :meth:`screenshot`
+        """
         if hide_selectors:
             if isinstance(hide_selectors, list):
                 sels = ', '.join(hide_selectors)
             elif isinstance(hide_selectors, str):
                 sels = hide_selectors
             style = sels+'{display: none !important}'
-            await self.page.addStyleTag(content=style)
-        if full_page:
-            shot = await self.page.screenshot(options, **kwargs)
+            await self.addStyleTag(content=style)
+        if not selector:
+            shot = await super().screenshot(options, **kwargs)
         else:
-            ele = await self.page.J(selector)
+            ele = await self.J(selector)
             if ele is None:
                 return 0
             elif await ele.isIntersectingViewport():
@@ -217,10 +170,62 @@ class BrowserClient:
             img.show()
         return shot
 
-    async def check(self, check_flag: str, url: _URL = "", by_selector=True):
-        if not url in self.page.url:
-            self.page.goto(url)
+    async def check(self, check_flag: str, by_selector=True):
         if by_selector:
-            return await self.page.J(check_flag)
+            return await self.J(check_flag)
         else:
-            return check_flag in await self.page.content()
+            return check_flag in await self.content()
+
+
+class BrowserClient:
+    """A client pretends itself as a real-world user agent using puppeteer.
+
+    This client support a more explicit pyppeteer interface.
+
+
+    Attributes:
+        browser: a pyppeteer browser object; You can provide a browser, 
+            otherwise it will create a new one; Diffierent BrowserClients can 
+            work with same browser.
+        context: a pyppeteer context; It will be automatically created as an 
+            incogonitocontext. BrowerClient use the context to create page, 
+            store session, work with cookies_manager.
+        cookies_manager: a CookiesManager synchronizing cookies between session 
+            and page.
+    """
+
+    def __init__(self,
+                 cookies_manager=None,
+                 browser=None,
+                 context=None,
+                 to_close=True,
+                 ):
+        self.cookies_manager = cookies_manager
+        self.browser = browser
+        self.context = context
+        self.to_close = to_close
+        self.user_agent = get_user_agent()
+
+    async def newPage(self) -> _Page:
+        page = NinjaPage(await self.context.newPage(), self)
+        await self.cookies_manager.sync_to_pyppeteer(page)
+        for js in pretend_js_list:
+            await page.evaluateOnNewDocument(js)
+        return page
+
+    async def close(self):
+        if self.to_close:
+            return await self.browser.close()
+
+    async def pages(self):
+        return await self.browser.pages()
+
+
+async def launch(browser=None, cookies_manager=None, options: dict = None, **kwargs) -> BrowserClient:
+    to_close = browser is None
+    if browser is None:
+        browser = await pyppeteer.launch(options, **kwargs)
+    context = await browser.createIncognitoBrowserContext()
+    cookies_manager = CookiesManager() if cookies_manager is None else cookies_manager
+    client = BrowserClient(cookies_manager, browser, context, to_close)
+    return client
