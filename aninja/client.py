@@ -139,6 +139,9 @@ class NinjaPage(Page):
     def cookies_manager(self):
         return self._client.cookies_manager
 
+    async def text(self):
+        return await self.evaluate('() => document.body.innerHTML')
+
     async def gather_for_navigation(self,   *aws, options: dict = None, **kwargs):
         """if coroutines in your aws can cause page's navigation, use this function to wrap it and
         keep track of cookies.
@@ -213,34 +216,32 @@ class BrowserClient:
                  cookies_manager=None,
                  browser=None,
                  context=None,
-                 to_close=True,
                  ):
         self.cookies_manager = cookies_manager
         self.browser = browser
         self.context = context
-        self.to_close = to_close
         self.user_agent = get_user_agent()
+        viewport = {'width': 1280, 'height': 1024}
+        self.emulate_options = {'viewport': viewport}
 
     async def newPage(self) -> _Page:
         page = NinjaPage(await self.context.newPage(), self)
         await self.cookies_manager.sync_to_pyppeteer(page)
+        await page.emulate(options=self.emulate_options)
         for js in pretend_js_list:
             await page.evaluateOnNewDocument(js)
         return page
 
     async def close(self):
-        if self.to_close:
-            return await self.browser.close()
+        return await self.browser.close()
 
     async def pages(self):
         return await self.browser.pages()
 
 
 async def launch(browser=None, cookies_manager=None, options: dict = None, **kwargs) -> BrowserClient:
-    to_close = browser is None
-    if browser is None:
-        browser = await pyppeteer.launch(options, **kwargs)
+    browser = await pyppeteer.launch(options, **kwargs)
     context = await browser.createIncognitoBrowserContext()
     cookies_manager = CookiesManager() if cookies_manager is None else cookies_manager
-    client = BrowserClient(cookies_manager, browser, context, to_close)
+    client = BrowserClient(cookies_manager, browser, context)
     return client
