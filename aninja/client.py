@@ -29,6 +29,21 @@ logger = logging.getLogger(__name__)
 DEFUALT_HEADERS = {'User-Agent': get_user_agent()}
 
 
+def patch_pyppeteer():
+    import pyppeteer.connection
+    original_method = pyppeteer.connection.websockets.client.connect
+
+    def new_method(*args, **kwargs):
+        kwargs['ping_interval'] = None
+        kwargs['ping_timeout'] = None
+        return original_method(*args, **kwargs)
+
+    pyppeteer.connection.websockets.client.connect = new_method
+
+
+patch_pyppeteer()
+
+
 class HTTPClient:
     """A client uses aiohttp to make requests.
     """
