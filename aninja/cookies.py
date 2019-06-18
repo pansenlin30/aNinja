@@ -4,7 +4,7 @@ from http.cookiejar import Cookie, LWPCookieJar
 from http.cookies import Morsel, SimpleCookie
 
 from aninja.utils import format_expires, filter_attrs, expires_to_number, expires_to_str
-from requests.cookies import RequestsCookieJar, create_cookie
+from requests.cookies import RequestsCookieJar
 
 
 # Typing
@@ -225,7 +225,7 @@ def create_cookie(name, value, **kwargs):
         'path': '/',
         'secure': False,
         'expires': None,
-        'discard': True,
+        'discard': False,
         'comment': None,
         'comment_url': None,
         'rest': {'HttpOnly': None},
