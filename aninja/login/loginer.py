@@ -1,10 +1,5 @@
 import asyncio
-from ..client import BrowserClient as Client
-
-
-# Typing
-from typing import Optional
-_Client = Optional['Client']
+from aninja.client import launch, BrowserClient, NinjaPage
 
 
 class Loginer:
@@ -12,46 +7,48 @@ class Loginer:
     login_mark = 'Not determined'
 
     def __init__(self,
-                 client: _Client = None,
+                 client,
                  username: str = '',
-                 password: str = '',
-                 devtools: bool = False):
-        self.config(username, password, )
-        self.devtools = devtools
-        self._external_client = True
-        if client is None:
-            self._external_client = False
-            self.client = Client()
-        else:
-            self.client = client
-
+                 password: str = ''
+                 ):
+        self.username = username
+        self.password = password
+        self.client: BrowserClient = client
         self.cookies_manager = self.client.cookies_manager
+        self.page: NinjaPage = None
+
+    @classmethod
+    async def launch(cls, browser=None, cookies_manager=None, options: dict = None, username='', password='', **kwargs):
+        client = await launch(browser, cookies_manager, options, **kwargs)
+        loginer = cls(client, username, password)
+        loginer.page = await loginer.client.newPage()
+        return loginer
 
     def config(self,
                username: str = '',
-               password: str = '',):
+               password: str = '', ):
         self.username = username
         self.password = password
 
     async def has_logged_in(self):
-        return await self.login_by_page(only_check=True)
+        return await self.login_by_browser(only_check=True)
 
-    async def login_by_page(self, only_check=False, qr_login: bool = False,) -> bool:
-        await self.client.prepare_page({'devtools': self.devtools})
-        await self.client.goto(self.url)
-        login = bool(await self.client.page_check(check_flag=self.login_mark))
+    async def login_by_browser(self, only_check=False, qr_login: bool = False, ) -> bool:
+        self.page: NinjaPage = await self.client.newPage()
+        await self.page.goto(self.url)
+        login = bool(await self.page.check(check_flag=self.login_mark))
 
         if not only_check and not login:
             if qr_login:
                 await self.login_with_qrcode()
             else:
                 await self.login_with_password()
-            login = bool(await self.client.page_check(check_flag=self.login_mark))
-        if self._external_client:
-            await self.client.close(mode=0, page=self.client.page)
-        else:
-            await self.client.close(mode=0)
+            login = bool(await self.page.check(check_flag=self.login_mark))
         return login
+
+    async def close(self):
+        await self.page.close()
+        await self.client.close()
 
     async def login_with_qrcode(self):
         raise NotImplementedError

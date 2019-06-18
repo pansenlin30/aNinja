@@ -4,14 +4,11 @@ import logging
 from io import BytesIO
 # typing
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, List, Optional, Tuple, Type, Union
 
 import pyppeteer
-import requests
-from aiohttp import ClientRequest, ClientSession
+from aiohttp import ClientSession
 from PIL import Image
-from pyppeteer.browser import Browser
-from pyppeteer.connection import CDPSession
 from pyppeteer.page import Page
 
 import aninja.conf as conf
@@ -131,13 +128,13 @@ class HTTPClient:
 class NinjaPage(Page):
 
     def __init__(self, page: _Page, client: 'BrowserClient'):
-        self._client = client
+        self._browser_client = client
         self._page = page
         self.__dict__.update(page.__dict__)
 
     @property
     def cookies_manager(self):
-        return self._client.cookies_manager
+        return self._browser_client.cookies_manager
 
     async def text(self):
         return await self.evaluate('() => document.body.innerHTML')
