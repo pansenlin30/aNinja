@@ -2,9 +2,9 @@ from setuptools import setup
 
 NAME = 'aninja'
 DESCRIPTION = 'Help your spiders deal with anti-crawling mechanism.'
-URL = ''
+URL = 'https://github.com/wooddance/aNinja'
 EMAIL = 'zireael.me@gmail.com'
-AUTHOR = 'Pan Senlin'
+AUTHOR = 'wooddance'
 VERSION = '0.0.1'
 
 packages = ['aninja']

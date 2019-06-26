@@ -5,13 +5,15 @@ verify_ssl = true
 
 [dev-packages]
 pytest = "*"
-aiohttp = "*"
 pytest-asyncio = "*"
+autopep8 = "*"
+pylint = "*"
 
 [packages]
 dateparser = "*"
 requests-html = "*"
 pillow = "*"
+aiohttp = "*"
 
 [requires]
 python_version = "3.6"

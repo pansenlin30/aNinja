@@ -1,5 +1,5 @@
 import asyncio
-from aninja.client import launch, BrowserClient, NinjaPage
+from aninja.browser import launch, BrowserClient, NinjaPage
 
 
 class Loginer:
