@@ -1,4 +1,4 @@
-from aninja.client import HTTPClient, BrowserClient, launch
+from aninja.browser import launch
 import pytest
 
 
@@ -16,18 +16,6 @@ async def test_browserclient():
     page = await client.newPage()
     await page.goto(httpbin('/cookies/set?k1=v1&k2=v2'))
     r = await page.goto(httpbin('/cookies'))
-    print(await r.text())
     assert '"k1": "v1"' in await r.text()
     assert await page.check('k2', by_selector=False)
     await client.close()
-    assert False
-
-
-@pytest.mark.asyncio
-async def test_httpclient():
-
-    async with HTTPClient() as client:
-        resp = await client.request('http://httpbin.org/cookies/set', method='GET', params={'k1': 'v1', 'k2': 'v2'})
-        assert client.cookies_manager.output_header_string() == 'k1=v1; k2=v2'
-        assert '"k1": "v1"' in await resp.text()
-        assert await client.check('k2', url=httpbin('/cookies/set?k1=v1&k2=v2'))
