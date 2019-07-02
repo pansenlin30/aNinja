@@ -2,7 +2,7 @@ import time
 import dateparser
 import random
 import asyncio
-
+import logging
 TIME_TEMPLATE = '%a, %d-%b-%Y %H:%M:%S GMT'
 
 
@@ -104,7 +104,13 @@ def get_user_agent():
 
 
 def sync_coroutine(coro, loop=None):
-    (loop or asyncio.get_event_loop()).run_until_complete(coro)
+    return (loop or asyncio.get_event_loop()).run_until_complete(coro)
+
+
+def get_logger(name: str):
+    if not name.startswith('aninja.'):
+        name = f'aninja.{name}'
+    return logging.getLogger(name)
 
 
 pretend_js_list = [js1, js2, js3, js4]
