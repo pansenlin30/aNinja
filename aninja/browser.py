@@ -14,11 +14,12 @@ _Page = Optional[Page]
 
 def patch_pyppeteer():
     import pyppeteer.connection
+
     original_method = pyppeteer.connection.websockets.client.connect
 
     def new_method(*args, **kwargs):
-        kwargs['ping_interval'] = None
-        kwargs['ping_timeout'] = None
+        kwargs["ping_interval"] = None
+        kwargs["ping_timeout"] = None
         return original_method(*args, **kwargs)
 
     pyppeteer.connection.websockets.client.connect = new_method
@@ -28,8 +29,7 @@ patch_pyppeteer()
 
 
 class NinjaPage(Page):
-
-    def __init__(self, page: _Page, client: 'BrowserClient'):
+    def __init__(self, page: _Page, client: "BrowserClient"):
         self._browser_client = client
         self._page = page
         self.__dict__.update(page.__dict__)
@@ -39,21 +39,24 @@ class NinjaPage(Page):
         return self._browser_client.cookies_manager
 
     async def text(self):
-        return await self.evaluate('() => document.body.innerHTML')
+        return await self.evaluate("() => document.body.innerHTML")
 
-    async def gather_for_navigation(self,   *aws, options: dict = None, **kwargs):
+    async def gather_for_navigation(self, *aws, options: dict = None):
         """if coroutines in your aws can cause page's navigation, use this function to wrap it and
         keep track of cookies.
         """
-        result = await asyncio.gather(self.waitForNavigation(options, **kwargs), *aws)
+        result = await asyncio.gather(self.waitForNavigation(options), *aws)
         await self.cookies_manager.update_from_pyppeteer(self)
         return result
 
-    async def screenshot(self, selector: str = '',
-                         hide_selectors: List[str] = None,
-                         show=False,
-                         options: dict = None,
-                         **kwargs):
+    async def screenshot(
+        self,
+        selector: str = "",
+        hide_selectors: List[str] = None,
+        show=False,
+        options: dict = None,
+        **kwargs,
+    ):
         """Another method to take a screen shot.
 
             Args:
@@ -67,10 +70,10 @@ class NinjaPage(Page):
         """
         if hide_selectors:
             if isinstance(hide_selectors, list):
-                sels = ', '.join(hide_selectors)
+                sels = ", ".join(hide_selectors)
             elif isinstance(hide_selectors, str):
                 sels = hide_selectors
-            style = sels+'{display: none !important}'
+            style = sels + "{display: none !important}"
             await self.addStyleTag(content=style)
         if not selector:
             shot = await super().screenshot(options, **kwargs)
@@ -111,17 +114,13 @@ class BrowserClient:
             and page.
     """
 
-    def __init__(self,
-                 cookies_manager=None,
-                 browser=None,
-                 context=None,
-                 ):
+    def __init__(self, cookies_manager=None, browser=None, context=None):
         self.cookies_manager = cookies_manager
         self.browser = browser
         self.context = context
         self.user_agent = get_user_agent()
-        viewport = {'width': 1280, 'height': 1024}
-        self.emulate_options = {'viewport': viewport}
+        viewport = {"width": 1280, "height": 1024}
+        self.emulate_options = {"viewport": viewport}
 
     async def newPage(self) -> _Page:
         page = NinjaPage(await self.context.newPage(), self)
@@ -138,7 +137,9 @@ class BrowserClient:
         return await self.browser.pages()
 
 
-async def launch(browser=None, cookies_manager=None, options: dict = None, **kwargs) -> BrowserClient:
+async def launch(
+    browser=None, cookies_manager=None, options: dict = None, **kwargs
+) -> BrowserClient:
     browser = await pyppeteer.launch(options, **kwargs)
     context = await browser.createIncognitoBrowserContext()
     cookies_manager = CookiesManager() if cookies_manager is None else cookies_manager
